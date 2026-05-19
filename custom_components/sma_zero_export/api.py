@@ -298,9 +298,18 @@ class SMAApiClient:
                         raise SMARateLimitError("Rate limited by SMA API (HTTP 429)", status_code=429)
 
                     if resp.status >= 500:
-                        last_exc = SMAApiError(
-                            f"Server error {resp.status}: {raw[:200]}", status_code=resp.status
-                        )
+                        # Avoid including raw response bodies in exception messages
+                        # (may contain sensitive or large payloads). Keep verbose
+                        # body output restricted to debug mode only.
+                        last_exc = SMAApiError(f"Server error {resp.status}", status_code=resp.status)
+                        if self._debug:
+                            try:
+                                preview = raw[:200]
+                                if self._access_token:
+                                    preview = preview.replace(self._access_token, "[REDACTED]")
+                                _LOGGER.debug("Server response body (truncated): %s", preview)
+                            except Exception:
+                                _LOGGER.debug("Server response body unavailable for debug logging")
                         delay = RETRY_BACKOFF_BASE * (2 ** attempt)
                         _LOGGER.warning(
                             "SMA API %d on attempt %d/%d – retrying in %.1fs",
@@ -309,9 +318,16 @@ class SMAApiClient:
                         await asyncio.sleep(delay)
                         continue
 
-                    raise SMAApiError(
-                        f"Unexpected HTTP {resp.status}: {raw[:200]}", status_code=resp.status
-                    )
+                    # Do not include raw response bodies in exception message.
+                    if self._debug:
+                        try:
+                            preview = raw[:200]
+                            if self._access_token:
+                                preview = preview.replace(self._access_token, "[REDACTED]")
+                            _LOGGER.debug("Unexpected HTTP %s response body (truncated): %s", resp.status, preview)
+                        except Exception:
+                            _LOGGER.debug("Unexpected HTTP %s and response body unavailable for debug logging", resp.status)
+                    raise SMAApiError(f"Unexpected HTTP {resp.status}", status_code=resp.status)
 
             except (SMAAuthError, SMARateLimitError, SMAApiError):
                 raise

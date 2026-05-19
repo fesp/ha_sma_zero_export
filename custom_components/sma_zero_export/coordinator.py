@@ -97,6 +97,18 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             debug=opts.get(OPT_DEBUG_LOGGING, False),
         )
 
+        # If the integration option for debug logging is enabled, elevate
+        # the package logger to DEBUG so debug statements throughout the
+        # integration become visible. Avoid changing levels when not
+        # explicitly requested to prevent noisy logs in normal operation.
+        try:
+            pkg_logger = logging.getLogger(__name__.rsplit(".", 1)[0])
+            if opts.get(OPT_DEBUG_LOGGING, False):
+                pkg_logger.setLevel(logging.DEBUG)
+        except Exception:
+            # Be conservative: if logger manipulation fails, do nothing.
+            pass
+
         # ── Runtime state ──────────────────────────────────────────────────
         self.zero_export_active: bool | None = None
         self.last_toggle: datetime | None = None
