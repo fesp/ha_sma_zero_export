@@ -275,6 +275,8 @@ class SMAApiClient:
                         _LOGGER.debug("%s %s → %d (%d ms)", method, url, resp.status, latency_ms)
 
                     if resp.status == 200:
+                        if not raw.strip():
+                            return {"data": {}, "latency_ms": latency_ms}
                         try:
                             import json
                             body = json.loads(raw)
