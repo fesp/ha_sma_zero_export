@@ -1,6 +1,6 @@
 {
   "domain": "sma_zero_export",
-  "name": "SMA Zero Export",
+  "name": "SMA zero export controller",
   "version": "1.0.0",
   "config_flow": true,
   "iot_class": "cloud_polling",
