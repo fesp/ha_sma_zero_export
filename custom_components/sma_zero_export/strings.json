@@ -1,0 +1,91 @@
+{
+  "title": "SMA Zero Export",
+  "config": {
+    "step": {
+      "user": {
+        "title": "SMA Zero Export – Connect",
+        "description": "Enter your SMA Sunny Portal credentials and select the energy price sensor that drives automatic control.",
+        "data": {
+          "username": "SMA username (e-mail)",
+          "password": "SMA password",
+          "plant_id": "Plant ID",
+          "price_sensor": "Energy price sensor"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid credentials. Please check your username and password.",
+      "cannot_connect": "Unable to connect to SMA Sunny Portal. Check your plant ID and network connection.",
+      "unknown": "An unexpected error occurred. Check the Home Assistant logs for details."
+    },
+    "abort": {
+      "already_configured": "A Zero Export controller for this plant is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SMA Zero Export – Options",
+        "data": {
+          "automatic_control": "Enable automatic control",
+          "manual_state": "Manual state when automatic control is disabled",
+          "deadband": "Deadband (price units)",
+          "min_toggle_interval": "Minimum toggle interval (minutes)",
+          "polling_interval": "State polling interval (minutes)",
+          "validation_enabled": "Enable grid feed-in validation",
+          "energy_meter_sensor": "Grid feed-in sensor",
+          "discrepancy_threshold": "Discrepancy threshold (W)",
+          "notifications_enabled": "Enable notifications",
+          "notify_service": "Notification service (e.g. notify.mobile_app_myphone)",
+          "failsafe_timeout": "Fail-safe timeout (minutes)",
+          "debug_logging": "Enable debug logging"
+        },
+        "data_description": {
+          "automatic_control": "When disabled, the manual state below is applied to the SMA portal immediately and held until automatic control is re-enabled.",
+          "manual_state": "The Zero Export state to apply when automatic control is disabled.",
+          "deadband": "Price values between -deadband and +deadband are treated as zero (no change). Negative prices trigger Zero Export ON; positive prices trigger OFF.",
+          "min_toggle_interval": "Minimum number of minutes between consecutive toggles of the Zero Export setting.",
+          "polling_interval": "How often (in minutes) the integration reads the Zero Export state from the SMA portal. Only active in automatic mode.",
+          "energy_meter_sensor": "A sensor that measures current grid feed-in power in watts. If grid feed-in exceeds the threshold while Zero Export is active, validation fails.",
+          "discrepancy_threshold": "Maximum allowable grid feed-in (W) while Zero Export is active before validation is marked as failed.",
+          "notify_service": "Enter the full service name, e.g. notify.mobile_app_myphone.",
+          "failsafe_timeout": "If Zero Export stays ON for longer than this many minutes while the energy price is positive, the integration forces it OFF."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Zero Export State"
+      },
+      "last_toggle": {
+        "name": "Last Toggle"
+      },
+      "status": {
+        "name": "API Status"
+      },
+      "validation": {
+        "name": "Feed-In Validation"
+      },
+      "api_latency": {
+        "name": "API Latency"
+      }
+    },
+    "binary_sensor": {
+      "healthy": {
+        "name": "Problem Detected"
+      }
+    },
+    "select": {
+      "control_mode": {
+        "name": "Control Mode",
+        "state": {
+          "automatic": "Automatic",
+          "manual_on": "Manual ON",
+          "manual_off": "Manual OFF"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+set_mode:
+  name: Set control mode
+  description: >
+    Set the Zero Export control mode. Equivalent to selecting a value from the
+    Control Mode select entity. Use in automations to switch between automatic
+    and manual modes.
+  fields:
+    mode:
+      name: Mode
+      description: "The desired control mode: 'automatic', 'manual_on', or 'manual_off'."
+      required: true
+      selector:
+        select:
+          options:
+            - automatic
+            - manual_on
+            - manual_off
+
+refresh:
+  name: Force refresh
+  description: >
+    Force an immediate state read from the SMA portal. In automatic mode this
+    also re-runs the control algorithm. In manual mode it only updates the
+    state sensor without touching the portal setting.
