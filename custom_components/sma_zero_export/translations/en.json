@@ -40,6 +40,10 @@
           "failsafe_timeout": "Fail-safe timeout (minutes)",
           "debug_logging": "Enable debug logging"
         },
+        "error": {
+          "required_grid_feed_in_sensor": "A grid feed-in sensor is required when validation is enabled.",
+          "required_notify_service": "A notification service is required when notifications are enabled."
+        },
         "data_description": {
           "automatic_control": "When disabled, the manual state below is applied to the SMA portal immediately and held until automatic control is re-enabled.",
           "manual_state": "The Zero Export state to apply when automatic control is disabled.",

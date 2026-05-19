@@ -56,10 +56,6 @@ class SMAZeroExportOptionsFlow(config_entries.OptionsFlow):
     ) -> config_entries.FlowResult:
         opts = self._entry.options
 
-        if user_input is not None:
-            # Write validated options and signal the coordinator to reload.
-            return self.async_create_entry(title="", data=user_input)
-
         schema = vol.Schema(
             {
                 # 3.1 Automatic Control
@@ -103,7 +99,7 @@ class SMAZeroExportOptionsFlow(config_entries.OptionsFlow):
                 ): BooleanSelector(),
                 vol.Optional(
                     OPT_ENERGY_METER_SENSOR,
-                    default=opts.get(OPT_ENERGY_METER_SENSOR, ""),
+                    default=opts.get(OPT_ENERGY_METER_SENSOR) or None,
                 ): EntitySelector(
                     EntitySelectorConfig(domain=["sensor"])
                 ),
@@ -138,5 +134,28 @@ class SMAZeroExportOptionsFlow(config_entries.OptionsFlow):
                 ): BooleanSelector(),
             }
         )
+
+        if user_input is not None:
+            if user_input.get(OPT_VALIDATION_ENABLED) and not user_input.get(OPT_ENERGY_METER_SENSOR):
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=schema,
+                    errors={OPT_ENERGY_METER_SENSOR: "required_grid_feed_in_sensor"},
+                )
+
+            if user_input.get(OPT_NOTIFICATIONS_ENABLED) and not user_input.get(OPT_NOTIFY_SERVICE):
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=schema,
+                    errors={OPT_NOTIFY_SERVICE: "required_notify_service"},
+                )
+
+            if not user_input.get(OPT_VALIDATION_ENABLED):
+                user_input[OPT_ENERGY_METER_SENSOR] = None
+
+            if not user_input.get(OPT_NOTIFICATIONS_ENABLED):
+                user_input[OPT_NOTIFY_SERVICE] = ""
+
+            return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(step_id="init", data_schema=schema)
