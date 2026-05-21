@@ -60,7 +60,7 @@ class SMAStateSensor(_SMABaseSensor):
     """Read-only portal state: 'on' / 'off' / 'unknown'."""
 
     _attr_translation_key = "state"
-    _attr_icon = "mdi:transmission-tower-export"
+    _attr_icon = "mdi:transmission-tower-import"
 
     def __init__(self, coordinator: SMAZeroExportCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
