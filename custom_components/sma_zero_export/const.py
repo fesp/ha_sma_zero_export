@@ -72,6 +72,7 @@ HEALTH_FAILED = "failed"
 
 # ── Scheduler intervals ───────────────────────────────────────────────────────
 VALIDATION_INTERVAL_SECONDS = 30
+VALIDATION_GRACE_PERIOD_SECONDS = 90
 FAILSAFE_INTERVAL_SECONDS = 60
 
 # ── HTTP / retry settings ─────────────────────────────────────────────────────

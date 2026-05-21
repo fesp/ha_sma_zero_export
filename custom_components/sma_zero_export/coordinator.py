@@ -59,6 +59,7 @@ from .const import (
     STATUS_VALIDATION_MISMATCH,
     VALIDATION_DISABLED,
     VALIDATION_FAILED,
+    VALIDATION_GRACE_PERIOD_SECONDS,
     VALIDATION_INTERVAL_SECONDS,
     VALIDATION_SUCCESS,
 )
@@ -125,6 +126,11 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             manual_on = opts.get(OPT_MANUAL_STATE, "off") == "on"
             self.control_mode = CONTROL_MODE_MANUAL_ON if manual_on else CONTROL_MODE_MANUAL_OFF
 
+        # Timestamp of the most recent False→True transition of
+        # zero_export_active.  Used to enforce a grace period before
+        # feed-in validation runs, so the inverter has time to respond.
+        self._zero_export_activated_at: datetime | None = None
+
         # Rate-limit back-off
         self._rate_limited_until: datetime | None = None
 
@@ -154,6 +160,8 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_setup(self) -> None:
         """Called once from async_setup_entry after coordinator is created."""
         # Always do an initial state fetch so sensors have values immediately.
+        # _fetch_portal_state will set _zero_export_activated_at if ZE is
+        # already ON in the portal, giving the grace period on startup too.
         await self._fetch_portal_state()
 
         if self._automatic:
@@ -213,6 +221,17 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.api_status = STATUS_SUCCESS
                 self._set_health(HEALTH_HEALTHY)
                 await self._persist_tokens()
+                # Track when ZE transitions to ON so the validation
+                # grace period is measured from the right moment.
+                if active and not prev:
+                    self._zero_export_activated_at = dt_util.utcnow()
+                    _LOGGER.debug(
+                        "Zero Export became active; validation grace period "
+                        "starts now (%ds)", VALIDATION_GRACE_PERIOD_SECONDS
+                    )
+                elif not active:
+                    # ZE is now OFF — clear the activation timestamp.
+                    self._zero_export_activated_at = None
                 if prev is not None and prev != active:
                     _LOGGER.warning(
                         "SMA portal state changed unexpectedly: %s → %s",
@@ -451,6 +470,27 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self.validation_status != prev_status:
                 self.async_set_updated_data(self._snapshot())
             return
+
+        # Gate 2b: grace period — the inverter may take up to ~60 seconds
+        # to fully propagate a Zero Export ON command.  Skip validation
+        # until at least VALIDATION_GRACE_PERIOD_SECONDS have elapsed
+        # since Zero Export was last confirmed active, to avoid a false
+        # FAILED reading while the inverter is still ramping down its
+        # output.  We stay in DISABLED (not FAILED) during this window.
+        if self._zero_export_activated_at is not None:
+            elapsed = (
+                dt_util.utcnow() - self._zero_export_activated_at
+            ).total_seconds()
+            if elapsed < VALIDATION_GRACE_PERIOD_SECONDS:
+                remaining = int(VALIDATION_GRACE_PERIOD_SECONDS - elapsed)
+                _LOGGER.debug(
+                    "Validation grace period active — %ds remaining; skipping",
+                    remaining,
+                )
+                self.validation_status = VALIDATION_DISABLED
+                if self.validation_status != prev_status:
+                    self.async_set_updated_data(self._snapshot())
+                return
 
         # Gate 3: sensor configured?
         meter_entity = self._opt(OPT_ENERGY_METER_SENSOR, "")
