@@ -340,6 +340,11 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._set_health(HEALTH_DEGRADED)
             return
 
+        # Reset validation status immediately when Zero Export is turned OFF —
+        # there is nothing to validate while it is inactive.
+        if not enable:
+            self.validation_status = VALIDATION_DISABLED
+
         # Step 6: follow-up GET to confirm
         await asyncio.sleep(2)
         await self._fetch_portal_state()
@@ -420,32 +425,61 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # ── Feed-in validation ────────────────────────────────────────────────────
 
     async def _run_validation(self) -> None:
-        """Check grid feed-in against the discrepancy threshold."""
+        """Check grid feed-in against the discrepancy threshold.
+
+        Per spec: validation only runs when automatic control is enabled AND
+        Zero Export is currently active AND a feed-in sensor is configured.
+        In all other cases the sensor reads "disabled".
+
+        Whenever validation_status changes, async_set_updated_data is called
+        so entity state is updated immediately rather than waiting for the
+        next coordinator poll.
+        """
+        prev_status = self.validation_status
+
+        # Gate 1: validation feature enabled?
         if not self._opt(OPT_VALIDATION_ENABLED, DEFAULT_VALIDATION_ENABLED):
             self.validation_status = VALIDATION_DISABLED
+            if self.validation_status != prev_status:
+                self.async_set_updated_data(self._snapshot())
             return
 
+        # Gate 2: Zero Export currently active?
+        # (spec: "while Zero Export is active")
         if not self.zero_export_active:
-            # Nothing to validate when Zero Export is OFF.
             self.validation_status = VALIDATION_DISABLED
+            if self.validation_status != prev_status:
+                self.async_set_updated_data(self._snapshot())
             return
 
+        # Gate 3: sensor configured?
         meter_entity = self._opt(OPT_ENERGY_METER_SENSOR, "")
         if not meter_entity:
             self.validation_status = VALIDATION_DISABLED
+            if self.validation_status != prev_status:
+                self.async_set_updated_data(self._snapshot())
             return
 
+        # Gate 4: sensor readable?
         state = self.hass.states.get(meter_entity)
         if state is None or state.state in ("unavailable", "unknown", ""):
             _LOGGER.debug("Feed-in sensor %s unavailable", meter_entity)
+            # Reset to disabled so stale FAILED doesn't persist after sensor loss.
+            self.validation_status = VALIDATION_DISABLED
+            if self.validation_status != prev_status:
+                self.async_set_updated_data(self._snapshot())
             return
 
         try:
             feed_in_w = float(state.state)
         except ValueError:
             _LOGGER.warning("Cannot parse feed-in sensor value: %s", state.state)
+            self.validation_status = VALIDATION_DISABLED
+            if self.validation_status != prev_status:
+                self.async_set_updated_data(self._snapshot())
             return
 
+        # ── Core check ────────────────────────────────────────────────────
         threshold = self._opt(OPT_DISCREPANCY_THRESHOLD, DEFAULT_DISCREPANCY_THRESHOLD)
         if feed_in_w > threshold:
             if self.validation_status != VALIDATION_FAILED:
@@ -461,7 +495,8 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         else:
             self.validation_status = VALIDATION_SUCCESS
 
-        self.async_set_updated_data(self._snapshot())
+        if self.validation_status != prev_status:
+            self.async_set_updated_data(self._snapshot())
 
     # ── Fail-safe ─────────────────────────────────────────────────────────────
 
@@ -515,6 +550,8 @@ class SMAZeroExportCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.hass.config_entries.async_update_entry(self._entry, options=new_options)
 
         if mode == CONTROL_MODE_AUTOMATIC:
+            # Always stop first to avoid duplicate timers if called rapidly.
+            self._stop_periodic_tasks()
             self._start_periodic_tasks()
             self._subscribe_price_sensor()
             # Re-fetch state and immediately run the algorithm.
