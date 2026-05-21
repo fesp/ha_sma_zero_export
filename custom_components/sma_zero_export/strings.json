@@ -51,6 +51,7 @@
           "min_toggle_interval": "Minimum number of minutes between consecutive toggles of the Zero Export setting.",
           "polling_interval": "How often (in minutes) the integration reads the Zero Export state from the SMA portal. Only active in automatic mode.",
           "energy_meter_sensor": "A sensor that measures current grid feed-in power in watts. If grid feed-in exceeds the threshold while Zero Export is active, validation fails.",
+          "validation_enabled": "Enable grid feed-in validation. The validation sensor remains disabled until Zero Export is active and the feed-in sensor is available.",
           "discrepancy_threshold": "Maximum allowable grid feed-in (W) while Zero Export is active before validation is marked as failed.",
           "notify_service": "Enter the full service name, e.g. notify.mobile_app_myphone.",
           "failsafe_timeout": "If Zero Export stays ON for longer than this many minutes while the energy price is positive, the integration forces it OFF."
@@ -70,7 +71,7 @@
         "name": "API Status"
       },
       "validation": {
-        "name": "Feed-In Validation"
+        "name": "Feed-In Validation Status"
       },
       "api_latency": {
         "name": "API Latency"
