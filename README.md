@@ -2,8 +2,8 @@
 
 Automatically controls the **Zero Export** setting on your SMA inverter via the Sunny Portal (EnnexOS) API, driven by real-time energy prices from a Home Assistant sensor.
 
-When the energy price is negative you are effectively paid to export, so Zero Export is turned **OFF**.
-When the price is positive you are paying to export, so Zero Export is turned **ON** to stop feeding back into the grid.
+When the energy price is postive you are effectively paid to export, so Zero Export is turned **OFF**.
+When the price is negative you are paying to export, so Zero Export is turned **ON** to stop feeding back into the grid.
 
 ---
 
